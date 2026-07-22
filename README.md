@@ -1,48 +1,101 @@
-# VidScribe.AI - YouTube Video Search & Transcription Agent
+# 🎬 VidScribe.AI — YouTube Video Search & Transcription Agent
 
-VidScribe.AI is an autonomous AI Agent built with **Groq API**, **SerpApi**, **Google Gemini**, and **Streamlit**. It allows users to search YouTube by topic (or paste a direct video URL), automatically extracts verbatim transcriptions using multimodal AI, stores transcripts in a local Knowledge Base, and provides a clean interactive web interface.
+![Python](https://img.shields.io/badge/Python-3.10%2B-blue?logo=python)
+![Streamlit](https://img.shields.io/badge/Streamlit-1.40%2B-FF4B4B?logo=streamlit)
+![Groq](https://img.shields.io/badge/Groq-LLaMA%203.3-orange)
+![Gemini](https://img.shields.io/badge/Gemini-2.0%20Flash-4285F4?logo=google)
+![SerpApi](https://img.shields.io/badge/SerpApi-YouTube%20Search-green)
 
----
-
-## Key Features
-
-- **Topic-to-Video Search**: Uses **SerpApi** (YouTube Search Engine) to find relevant YouTube video links for any search topic.
-- **Multimodal Video Transcription**: Uses **Google Gemini** (with caption engine fallback) to extract verbatim transcriptions without AI commentary or hallucinated summaries.
-- **Deterministic Tool Chaining**: Powered by **Groq API** (`llama-3.3-70b-versatile` & `openai/gpt-oss-120b`) enforcing forced `tool_choice` execution.
-- **Real-Time Execution Status**: Displays interactive `st.status` step-by-step checklist updates as the agent executes tools.
-- **Knowledge Base Persistence**: Automatically saves transcript files to `transcripts/<video_id>.txt`.
-- **One-Click Download**: Integrated button to download `.txt` transcript files directly.
-- **Strict Design Standards**: Clean, modern typography complying with strict UI rules (zero emojis, clean contrast, native light/dark theme support).
+An autonomous AI Agent built with **Groq API**, **SerpApi**, **Google Gemini**, and **Streamlit**. VidScribe.AI searches YouTube by topic (or direct URL), transcribes spoken audio using multimodal AI, stores transcripts in a local Knowledge Base, and provides a clean, responsive web interface.
 
 ---
 
-## Tech Stack
+## 🌐 Live Demo
 
-- **Agent Orchestration**: Groq API (`llama-3.3-70b-versatile`)
-- **Video Search Tool**: SerpApi (`engine="youtube"`)
-- **Transcription Tool**: Google Gemini API (`google-genai`) + `youtube-transcript-api` fallback
-- **Frontend UI**: Streamlit
-- **Language**: Python 3.10+
+- **Live App:** [https://vidscribe-ai.streamlit.app/](https://vidscribe-ai.streamlit.app/)
+- **Demo Video:** *(Add video link / GIF here)*
 
 ---
 
-## Project Architecture
+## 📸 Application Screenshots
+
+| Main Interface & Topic Input | Verbatim Transcript & Download |
+| :---: | :---: |
+| *(Add main UI screenshot)* | *(Add output & transcript download screenshot)* |
+
+---
+
+## ⚙️ How It Works
+
+1. **User Request**: The user enters a search topic (e.g. *"Neural Networks explained"*) or pastes a direct YouTube URL.
+2. **Tool Selection**: Groq LLaMA inspects the input and invokes `search_youtube_video(query)`.
+3. **Video Ingestion**: SerpApi fetches matching YouTube video metadata, title, and exact URL.
+4. **Transcription**: The agent invokes `transcribe_video(video_url)`, extracting verbatim audio via Gemini multimodal engine.
+5. **Knowledge Base Storage**: Transcripts are automatically saved to `transcripts/<video_id>.txt` in UTF-8 format.
+6. **Output Delivery**: Streamlit renders real-time `st.status` execution checklists, verbatim transcript text, source link, and instant `.txt` download button.
+
+---
+
+## ✨ Key Features
+
+- 🔍 **Topic-to-Video Search**: Instant YouTube video retrieval via SerpApi.
+- 🎙️ **Verbatim Transcription**: Gemini multimodal audio extraction (no hallucinated summaries).
+- 🧠 **Deterministic Agent Tool-Chaining**: Powered by Groq `llama-3.3-70b-versatile` with forced `tool_choice`.
+- ⚡ **Real-Time Execution Checklist**: `st.status` widget for live step-by-step feedback.
+- 💾 **Knowledge Base Storage**: Auto-saves transcript files locally.
+- 📥 **One-Click Download**: Integrated `.txt` transcript download button.
+- 🎨 **Minimalist Design**: Clean typography with dark/light Streamlit theme support.
+
+---
+
+## 🛠️ Tech Stack
+
+| Technology | Category | Role / Purpose |
+| :--- | :--- | :--- |
+| **Groq API** | Agent Orchestration | Runs `llama-3.3-70b-versatile` for tool-calling logic |
+| **SerpApi** | Search Tool | Fetches YouTube video links and channel metadata |
+| **Google Gemini API** | Transcription Tool | Multimodal video audio transcription (`gemini-2.0-flash`) |
+| **YouTube Transcript API** | Fallback Tool | Direct caption extraction fallback |
+| **Streamlit** | Web Interface | Interactive frontend with real-time status updates |
+| **Python** | Core Language | Application backend and agent execution logic |
+
+---
+
+## 🏗️ Project Architecture
 
 ```mermaid
 flowchart TD
-    User["User Query (Topic or URL)"] --> Agent["VidScribe AI Agent (Groq API)"]
-    Agent -->|Step 1: Search| SerpApi["SerpApi YouTube Search Tool"]
+    User["User Input (Topic / URL)"] --> Agent["Groq LLaMA 3.3 Agent"]
+    Agent -->|Step 1: Search| SerpApi["SerpApi YouTube Tool"]
     SerpApi -->|Returns Video URL| Agent
-    Agent -->|Step 2: Transcribe| Gemini["Gemini Multimodal Transcription Tool"]
-    Gemini -->|Extracts Transcript| KB["Local Knowledge Base (transcripts/<video_id>.txt)"]
-    KB --> UI["Streamlit UI (VidScribe.AI)"]
+    Agent -->|Step 2: Transcribe| Gemini["Gemini Transcription Tool"]
+    Gemini -->|Extracts Transcript| KB["Knowledge Base (transcripts/<video_id>.txt)"]
+    KB --> UI["VidScribe.AI Streamlit Interface"]
 ```
 
 ---
 
-## Local Installation & Setup
+## 📂 Project Structure
 
-1. **Clone the Repository**:
+```text
+YT Video Search & Transcription Agent/
+├── .env                  # API keys (Groq, SerpApi, Gemini)
+├── .gitignore            # Git exclusion rules
+├── README.md             # Project documentation
+├── agent.py              # Groq tool-calling agent logic
+├── app.py                # Streamlit web application
+├── config.py             # App configuration & constants
+├── requirements.txt      # Python dependencies
+├── tools.py              # SerpApi & Gemini tool implementations
+└── transcripts/          # Knowledge base storage directory
+    └── .gitkeep
+```
+
+---
+
+## 💻 Local Setup & Installation
+
+1. **Clone Repository**:
    ```bash
    git clone https://github.com/Arslan-Codes097/YouTube-Video-Search-Transcription-AI-Agent-.git
    cd YouTube-Video-Search-Transcription-AI-Agent-
@@ -53,7 +106,7 @@ flowchart TD
    pip install -r requirements.txt
    ```
 
-3. **Configure Environment Variables**:
+3. **Set Up `.env`**:
    Create a `.env` file in the root directory:
    ```env
    GROQ_API_KEY=your_groq_api_key
@@ -61,13 +114,14 @@ flowchart TD
    GEMINI_API_KEY=your_gemini_api_key
    ```
 
-4. **Run the Streamlit Application**:
+4. **Run Streamlit Application**:
    ```bash
    streamlit run app.py
    ```
 
 ---
 
-## License
+## 👤 Author
 
-MIT License
+Developed with passion by **Arslan Babar**:
+- **GitHub:** [@Arslan-Codes097](https://github.com/Arslan-Codes097)
