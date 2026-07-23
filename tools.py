@@ -8,7 +8,7 @@ from google.genai import types
 
 from config import GEMINI_API_KEY, SERPAPI_KEY, TRANSCRIPTS_DIR
 
-gemini_client = genai.Client(api_key=GEMINI_API_KEY)
+gemini_client = genai.Client(api_key=GEMINI_API_KEY) if GEMINI_API_KEY else None
 
 
 def search_youtube_video(query: str) -> str:
@@ -43,15 +43,24 @@ def transcribe_video(video_url: str) -> str:
         "paraphrase, or add commentary of any kind."
     )
 
-    result = gemini_client.models.generate_content(
-        model="gemini-2.0-flash",
-        contents=types.Content(parts=[
-            types.Part(file_data=types.FileData(file_uri=video_url)),
-            types.Part(text=prompt),
-        ]),
-    )
+    try:
+        if not gemini_client:
+            raise ValueError("GEMINI_API_KEY is not configured.")
 
-    transcript = result.text.strip() if result and result.text else ""
+        result = gemini_client.models.generate_content(
+            model="gemini-2.0-flash",
+            contents=types.Content(parts=[
+                types.Part(file_data=types.FileData(file_uri=video_url)),
+                types.Part(text=prompt),
+            ]),
+        )
+        transcript = result.text.strip() if result and result.text else ""
+    except Exception as e:
+        return json.dumps({
+            "error": f"Gemini API Transcription Error: {str(e)}",
+            "transcript": None,
+            "source_url": video_url,
+        })
 
     # Store transcript in Knowledge Base directory
     os.makedirs(TRANSCRIPTS_DIR, exist_ok=True)

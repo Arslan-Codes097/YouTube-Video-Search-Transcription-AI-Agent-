@@ -103,6 +103,14 @@ def run_agent(user_query: str, model: str = DEFAULT_MODEL, progress_callback=Non
                 progress_callback("transcribe_video", "completed", parsed_result)
 
     transcription_result = json.loads(trace[-1]["result"])
+    if transcription_result.get("error"):
+        return {
+            "transcript": None,
+            "source_url": transcription_result.get("source_url"),
+            "answer": transcription_result.get("error"),
+            "trace": trace,
+        }
+
     transcript = transcription_result.get("transcript")
     source_url = transcription_result.get("source_url")
 
