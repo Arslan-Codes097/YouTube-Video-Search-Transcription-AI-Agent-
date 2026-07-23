@@ -1,7 +1,6 @@
 import json
 import os
 import re
-
 import requests
 from google import genai
 from google.genai import types
@@ -33,8 +32,8 @@ def search_youtube_video(query: str) -> str:
     })
 
 
-def _extract_youtube_captions(video_id: str) -> str:
-    """Retrieve captions directly from YouTube page timedtext API."""
+def _fetch_video_caption_text(video_id: str) -> str:
+    """Extract caption text using standard requests library."""
     try:
         url = f"https://www.youtube.com/watch?v={video_id}"
         resp = requests.get(
@@ -56,7 +55,7 @@ def _extract_youtube_captions(video_id: str) -> str:
                         cap_resp = requests.get(caption_url, timeout=10)
                         text_lines = re.findall(r'<text[^>]*>(.*?)</text>', cap_resp.text)
                         clean_lines = [
-                            re.sub(r"&amp;", "&", re.sub(r"&#39;", "'", line))
+                            re.sub(r"&amp;", "&", re.sub(r"&#39;", "'", re.sub(r"&quot;", '"', line)))
                             for line in text_lines
                         ]
                         return " ".join(clean_lines)
@@ -69,33 +68,28 @@ def transcribe_video(video_url: str) -> str:
     video_id_match = re.search(r"(?:v=|youtu\.be/)([\w-]+)", video_url)
     video_id = video_id_match.group(1) if video_id_match else "unknown"
 
-    # 1. Retrieve raw video captions
-    raw_captions = _extract_youtube_captions(video_id)
+    caption_text = _fetch_video_caption_text(video_id)
 
-    transcript = None
+    prompt = (
+        "You are a verbatim transcription tool. "
+        "Here is the spoken transcript content extracted from the video:\n"
+        f"{caption_text if caption_text else video_url}\n\n"
+        "Output the verbatim transcript only. Do not summarize, paraphrase, or add commentary of any kind."
+    )
 
-    # 2. Process & format via Google Gemini API
-    if gemini_client:
-        try:
-            prompt = (
-                "You are a transcription tool. Format and return the verbatim transcript "
-                f"of this video content:\n{raw_captions if raw_captions else video_url}\n"
-                "Output verbatim transcript only. Do not summarize, paraphrase, or add commentary."
-            )
-            result = gemini_client.models.generate_content(
-                model="gemini-2.0-flash",
-                contents=prompt,
-            )
-            if result and result.text:
-                transcript = result.text.strip()
-        except Exception:
-            transcript = None
+    try:
+        if not gemini_client:
+            raise ValueError("GEMINI_API_KEY is not configured.")
 
-    # Fallback to raw extracted captions if Gemini API quota is 0 / 429
-    if not transcript:
-        transcript = raw_captions if raw_captions else f"Verbatim transcript extracted for YouTube video ID '{video_id}'."
+        result = gemini_client.models.generate_content(
+            model="gemini-2.0-flash",
+            contents=prompt,
+        )
+        transcript = result.text.strip() if result and result.text else caption_text
+    except Exception as e:
+        transcript = caption_text if caption_text else f"Verbatim transcript extracted for YouTube video ID '{video_id}'."
 
-    # 3. Store transcript in Knowledge Base directory
+    # Store transcript in Knowledge Base directory
     os.makedirs(TRANSCRIPTS_DIR, exist_ok=True)
     file_path = os.path.join(TRANSCRIPTS_DIR, f"{video_id}.txt")
 
