@@ -35,8 +35,28 @@ def search_youtube_video(query: str) -> str:
 def _extract_transcript_via_api(video_id: str) -> str:
     """Extract full verbatim transcript text using youtube-transcript-api."""
     try:
-        transcript_list = YouTubeTranscriptApi.get_transcript(video_id)
-        full_text = " ".join([item["text"].replace('\n', ' ') for item in transcript_list])
+        ytt_api = YouTubeTranscriptApi()
+        transcript_list = ytt_api.list(video_id)
+        
+        transcript = None
+        try:
+            transcript = transcript_list.find_transcript(['en', 'en-US', 'en-GB'])
+        except Exception:
+            for t in transcript_list:
+                transcript = t
+                break
+                
+        if not transcript:
+             return f"Error extracting transcript: No transcript available"
+
+        fetched = transcript.fetch()
+        if hasattr(fetched, 'snippets'):
+            full_text = " ".join([s.text.replace('\n', ' ') for s in fetched.snippets])
+        elif isinstance(fetched, list) and len(fetched) > 0 and isinstance(fetched[0], dict):
+            full_text = " ".join([item.get("text", "").replace('\n', ' ') for item in fetched])
+        else:
+             full_text = str(fetched)
+             
         if full_text:
             return full_text
     except Exception as e:
