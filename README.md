@@ -6,7 +6,7 @@
 ![Gemini](https://img.shields.io/badge/Gemini-2.0%20Flash-4285F4?logo=google)
 ![SerpApi](https://img.shields.io/badge/SerpApi-YouTube%20Search-green)
 
-An autonomous AI Agent built with **Groq API**, **SerpApi**, **Google Gemini**, and **Streamlit**. VidScribe.AI searches YouTube by topic (or direct URL), transcribes spoken audio using multimodal AI, stores transcripts in a local Knowledge Base, and provides a clean, responsive web interface.
+An autonomous AI Agent built with **Groq API**, **SerpApi**, **Google Gemini API**, and **Streamlit**. VidScribe.AI searches YouTube by topic (or direct URL), transcribes spoken audio using Google Gemini multimodal AI, stores transcripts in a local Knowledge Base, and provides a clean, responsive web interface.
 
 ---
 
@@ -28,7 +28,7 @@ An autonomous AI Agent built with **Groq API**, **SerpApi**, **Google Gemini**, 
 ## ✨ Key Features
 
 - 🔍 **Topic-to-Video Search**: Instant YouTube video retrieval via SerpApi.
-- 🎙️ **Verbatim Transcription**: Gemini multimodal audio extraction (no hallucinated summaries).
+- 🎙️ **Verbatim Transcription**: Google Gemini multimodal audio extraction (`gemini-2.0-flash`).
 - 🧠 **Deterministic Agent Tool-Chaining**: Powered by Groq `llama-3.3-70b-versatile` with forced `tool_choice`.
 - ⚡ **Real-Time Execution Checklist**: `st.status` widget for live step-by-step feedback.
 - 💾 **Knowledge Base Storage**: Auto-saves transcript files locally (`transcripts/<video_id>.txt`).
@@ -44,7 +44,6 @@ An autonomous AI Agent built with **Groq API**, **SerpApi**, **Google Gemini**, 
 | **Groq API** | Agent Orchestration | Runs `llama-3.3-70b-versatile` for tool-calling logic |
 | **SerpApi** | Search Tool | Fetches YouTube video links and channel metadata |
 | **Google Gemini API** | Transcription Tool | Multimodal video audio transcription (`gemini-2.0-flash`) |
-| **YouTube Transcript API** | Fallback Tool | Direct caption extraction fallback |
 | **Streamlit** | Web Interface | Interactive frontend with real-time status updates |
 | **Python** | Core Language | Application backend and agent execution logic |
 
@@ -55,7 +54,7 @@ An autonomous AI Agent built with **Groq API**, **SerpApi**, **Google Gemini**, 
 1. **User Request**: The user enters a search topic (e.g. *"Neural Networks explained"*) or pastes a direct YouTube URL.
 2. **Tool Selection**: Groq LLaMA inspects the input and invokes `search_youtube_video(query)`.
 3. **Video Ingestion**: SerpApi fetches matching YouTube video metadata, title, and exact URL.
-4. **Transcription**: The agent invokes `transcribe_video(video_url)`, extracting verbatim audio via Gemini multimodal engine.
+4. **Transcription**: The agent invokes `transcribe_video(video_url)`, extracting verbatim audio via Gemini multimodal engine (`gemini-2.0-flash`).
 5. **Knowledge Base Storage**: Transcripts are automatically saved to `transcripts/<video_id>.txt` in UTF-8 format.
 6. **Output Delivery**: Streamlit renders real-time `st.status` execution checklists, verbatim transcript text, source link, and instant `.txt` download button.
 
