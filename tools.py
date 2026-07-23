@@ -2,7 +2,7 @@ import json
 import os
 import re
 import requests
-import yt_dlp
+from youtube_transcript_api import YouTubeTranscriptApi
 from google import genai
 
 from config import GEMINI_API_KEY, SERPAPI_KEY, TRANSCRIPTS_DIR
@@ -32,65 +32,15 @@ def search_youtube_video(query: str) -> str:
     })
 
 
-def _extract_transcript_via_ytdlp(video_url: str, video_id: str) -> str:
-    """Extract full verbatim transcript text using yt-dlp subtitle/caption streams."""
+def _extract_transcript_via_api(video_id: str) -> str:
+    """Extract full verbatim transcript text using youtube-transcript-api."""
     try:
-        ydl_opts = {
-            "skip_download": True,
-            "quiet": True,
-            "no_warnings": True,
-        }
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(video_url, download=False)
-            auto = info.get("automatic_captions") or info.get("subtitles") or {}
-
-            # Prioritize English, then any available subtitle language
-            lang_keys = ["en", "en-orig", "en-US", "en-GB"] + [k for k in auto.keys() if k not in ["en", "en-orig", "en-US", "en-GB"]]
-            sub_list = None
-            for k in lang_keys:
-                if k in auto and auto[k]:
-                    sub_list = auto[k]
-                    break
-
-            if sub_list:
-                # Prioritize formats: json3, vtt, srv1, ttml
-                sub_item = None
-                for fmt in ["json3", "vtt", "srv1", "ttml"]:
-                    matches = [s for s in sub_list if s.get("ext") == fmt]
-                    if matches:
-                        sub_item = matches[0]
-                        break
-                if not sub_item:
-                    sub_item = sub_list[0]
-
-                sub_url = sub_item.get("url")
-                if sub_url:
-                    resp = requests.get(sub_url, timeout=10)
-                    ext = sub_item.get("ext")
-
-                    if ext == "json3" or "wireMagic" in resp.text:
-                        data = resp.json()
-                        events = data.get("events", [])
-                        words = []
-                        for ev in events:
-                            segs = ev.get("segs", [])
-                            for seg in segs:
-                                w = seg.get("utf8", "").strip()
-                                if w and w != "\n":
-                                    words.append(w)
-                        full_text = " ".join(words)
-                        if full_text:
-                            return full_text
-                    else:
-                        lines = re.findall(r'<text[^>]*>(.*?)</text>', resp.text)
-                        if not lines:
-                            lines = re.findall(r'^(?!\d{2}:|\d+$|WEBVTT)(.*)$', resp.text, re.MULTILINE)
-                        clean = [re.sub(r'<[^>]+>', '', l).strip() for l in lines if l.strip()]
-                        full_text = " ".join(clean)
-                        if full_text:
-                            return full_text
-    except Exception:
-        pass
+        transcript_list = YouTubeTranscriptApi.get_transcript(video_id)
+        full_text = " ".join([item["text"].replace('\n', ' ') for item in transcript_list])
+        if full_text:
+            return full_text
+    except Exception as e:
+        return f"Error extracting transcript: {str(e)}"
 
     return f"Verbatim transcript extracted for YouTube video ID '{video_id}'."
 
@@ -99,7 +49,7 @@ def transcribe_video(video_url: str) -> str:
     video_id_match = re.search(r"(?:v=|youtu\.be/)([\w-]+)", video_url)
     video_id = video_id_match.group(1) if video_id_match else "unknown"
 
-    raw_transcript = _extract_transcript_via_ytdlp(video_url, video_id)
+    raw_transcript = _extract_transcript_via_api(video_id)
 
     transcript = None
 
