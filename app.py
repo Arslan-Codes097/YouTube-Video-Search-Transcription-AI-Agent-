@@ -8,7 +8,7 @@ st.set_page_config(page_title="VidScribe.AI", layout="centered")
 
 # Header Section
 st.title("VidScribe.AI")
-st.caption("Agent powered by Groq + SerpApi + Gemini")
+st.caption("Agent powered by Groq + SerpApi")
 
 st.markdown("##### Workflow: Think of a Topic → Get a YouTube Video Link + Verbatim Transcription")
 st.markdown("---")
@@ -33,7 +33,7 @@ if run_button and query.strip():
                 status_container.write(f"✓ Step 1 Completed: Found video '{title}' ({url})")
         elif tool_name == "transcribe_video":
             if state == "started":
-                status_container.write("2. Extracting verbatim transcript via Gemini multimodal engine...")
+                status_container.write("2. Extracting verbatim transcript via SerpApi...")
             elif state == "completed":
                 saved_path = data.get("saved_path", "")
                 status_container.write(f"✓ Step 2 Completed: Transcript extracted & saved to Knowledge Base ({saved_path})")

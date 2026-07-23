@@ -1,6 +1,5 @@
 streamlit
 groq
-google-genai
+
 requests
 python-dotenv
-youtube-transcript-api

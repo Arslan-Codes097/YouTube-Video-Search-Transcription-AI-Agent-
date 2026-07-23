@@ -2,12 +2,7 @@ import json
 import os
 import re
 import requests
-from google import genai
-from google.genai import types
-
-from config import GEMINI_API_KEY, SERPAPI_KEY, TRANSCRIPTS_DIR
-
-gemini_client = genai.Client(api_key=GEMINI_API_KEY) if GEMINI_API_KEY else None
+from config import SERPAPI_KEY, TRANSCRIPTS_DIR
 
 
 def search_youtube_video(query: str) -> str:
@@ -33,33 +28,29 @@ def search_youtube_video(query: str) -> str:
 
 
 def _extract_transcript_via_api(video_id: str) -> str:
-    """Extract full verbatim transcript text using youtube-transcript-api."""
-    from youtube_transcript_api import YouTubeTranscriptApi
+    """Extract full verbatim transcript text using SerpApi."""
     try:
-        ytt_api = YouTubeTranscriptApi()
-        transcript_list = ytt_api.list(video_id)
+        params = {
+            "engine": "youtube_video_transcript",
+            "v": video_id,
+            "api_key": SERPAPI_KEY,
+        }
+        response = requests.get("https://serpapi.com/search", params=params, timeout=30)
+        response.raise_for_status()
+        data = response.json()
         
-        transcript = None
-        try:
-            transcript = transcript_list.find_transcript(['en', 'en-US', 'en-GB'])
-        except Exception:
-            for t in transcript_list:
-                transcript = t
-                break
-                
-        if not transcript:
-             return f"Error extracting transcript: No transcript available"
-
-        fetched = transcript.fetch()
-        if hasattr(fetched, 'snippets'):
-            full_text = " ".join([s.text.replace('\n', ' ') for s in fetched.snippets])
-        elif isinstance(fetched, list) and len(fetched) > 0 and isinstance(fetched[0], dict):
-            full_text = " ".join([item.get("text", "").replace('\n', ' ') for item in fetched])
-        else:
-             full_text = str(fetched)
-             
+        if "error" in data:
+            return f"Error extracting transcript: {data['error']}"
+            
+        transcript_parts = data.get("transcript", [])
+        if not transcript_parts:
+            return "Error extracting transcript: No transcript available"
+            
+        full_text = " ".join([item.get("snippet", "").replace('\xa0', ' ').replace('\n', ' ') for item in transcript_parts])
+        
         if full_text:
             return full_text
+            
     except Exception as e:
         return f"Error extracting transcript: {str(e)}"
 
@@ -71,27 +62,7 @@ def transcribe_video(video_url: str) -> str:
     video_id = video_id_match.group(1) if video_id_match else "unknown"
 
     raw_transcript = _extract_transcript_via_api(video_id)
-
-    transcript = None
-
-    # Optional formatting via Google Gemini API
-    if gemini_client and raw_transcript and not raw_transcript.startswith("Verbatim transcript extracted"):
-        try:
-            prompt = (
-                "Format the following transcript verbatim cleanly. Do not summarize or paraphrase:\n\n"
-                f"{raw_transcript[:4000]}"
-            )
-            result = gemini_client.models.generate_content(
-                model="gemini-2.0-flash",
-                contents=prompt,
-            )
-            if result and result.text:
-                transcript = result.text.strip()
-        except Exception:
-            transcript = raw_transcript
-
-    if not transcript:
-        transcript = raw_transcript
+    transcript = raw_transcript
 
     # Store transcript in Knowledge Base directory
     os.makedirs(TRANSCRIPTS_DIR, exist_ok=True)
@@ -140,7 +111,7 @@ TOOL_SCHEMAS = [
         "function": {
             "name": "transcribe_video",
             "description": (
-                "Transcribe the audio of a YouTube video from its URL using Gemini API. "
+                "Transcribe the audio of a YouTube video from its URL. "
                 "Returns the verbatim transcript and the source URL. "
                 "Call this after obtaining a video URL, whether from "
                 "search_youtube_video or given directly by the user."
