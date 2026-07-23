@@ -2,8 +2,8 @@ import json
 import os
 import re
 import requests
-from youtube_transcript_api import YouTubeTranscriptApi
 from google import genai
+from google.genai import types
 
 from config import GEMINI_API_KEY, SERPAPI_KEY, TRANSCRIPTS_DIR
 
@@ -32,65 +32,33 @@ def search_youtube_video(query: str) -> str:
     })
 
 
-def _extract_transcript_via_api(video_id: str) -> str:
-    """Extract full verbatim transcript text using youtube-transcript-api."""
-    try:
-        ytt_api = YouTubeTranscriptApi()
-        transcript_list = ytt_api.list(video_id)
-        
-        transcript = None
-        try:
-            transcript = transcript_list.find_transcript(['en', 'en-US', 'en-GB'])
-        except Exception:
-            for t in transcript_list:
-                transcript = t
-                break
-                
-        if not transcript:
-             return f"Error extracting transcript: No transcript available"
-
-        fetched = transcript.fetch()
-        if hasattr(fetched, 'snippets'):
-            full_text = " ".join([s.text.replace('\n', ' ') for s in fetched.snippets])
-        elif isinstance(fetched, list) and len(fetched) > 0 and isinstance(fetched[0], dict):
-            full_text = " ".join([item.get("text", "").replace('\n', ' ') for item in fetched])
-        else:
-             full_text = str(fetched)
-             
-        if full_text:
-            return full_text
-    except Exception as e:
-        return f"Error extracting transcript: {str(e)}"
-
-    return f"Verbatim transcript extracted for YouTube video ID '{video_id}'."
-
-
 def transcribe_video(video_url: str) -> str:
     video_id_match = re.search(r"(?:v=|youtu\.be/)([\w-]+)", video_url)
     video_id = video_id_match.group(1) if video_id_match else "unknown"
 
-    raw_transcript = _extract_transcript_via_api(video_id)
+    if not gemini_client:
+        return json.dumps({"error": "Gemini API key is missing."})
 
-    transcript = None
-
-    # Optional formatting via Google Gemini API
-    if gemini_client and raw_transcript and not raw_transcript.startswith("Verbatim transcript extracted"):
-        try:
-            prompt = (
-                "Format the following transcript verbatim cleanly. Do not summarize or paraphrase:\n\n"
-                f"{raw_transcript[:4000]}"
-            )
-            result = gemini_client.models.generate_content(
-                model="gemini-2.0-flash",
-                contents=prompt,
-            )
-            if result and result.text:
-                transcript = result.text.strip()
-        except Exception:
-            transcript = raw_transcript
-
-    if not transcript:
-        transcript = raw_transcript
+    try:
+        prompt = (
+            "Provide a comprehensive verbatim transcript of the spoken audio in this video. "
+            "Output only the verbatim text."
+        )
+        response = gemini_client.models.generate_content(
+            model="gemini-3.6-flash",
+            contents=[
+                types.Part.from_uri(file_uri=video_url, mime_type="video/mp4"),
+                types.Part.from_text(text=prompt)
+            ]
+        )
+        
+        if not response.text:
+            return json.dumps({"error": "Gemini processed the request but returned no transcription text."})
+            
+        transcript = response.text.strip()
+        
+    except Exception as e:
+        return json.dumps({"error": f"Failed during video transcription -> {str(e)}"})
 
     # Store transcript in Knowledge Base directory
     os.makedirs(TRANSCRIPTS_DIR, exist_ok=True)
