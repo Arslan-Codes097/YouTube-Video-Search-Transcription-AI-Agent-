@@ -3,3 +3,4 @@ groq
 google-genai
 requests
 python-dotenv
+yt-dlp

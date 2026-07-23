@@ -2,8 +2,8 @@ import json
 import os
 import re
 import requests
+import yt_dlp
 from google import genai
-from google.genai import types
 
 from config import GEMINI_API_KEY, SERPAPI_KEY, TRANSCRIPTS_DIR
 
@@ -32,62 +32,95 @@ def search_youtube_video(query: str) -> str:
     })
 
 
-def _fetch_video_caption_text(video_id: str) -> str:
-    """Extract caption text using standard requests library."""
+def _extract_transcript_via_ytdlp(video_url: str, video_id: str) -> str:
+    """Extract full verbatim transcript text using yt-dlp subtitle/caption streams."""
     try:
-        url = f"https://www.youtube.com/watch?v={video_id}"
-        resp = requests.get(
-            url,
-            headers={
-                "User-Agent": (
-                    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
-                )
-            },
-            timeout=10,
-        )
-        if "captionTracks" in resp.text:
-            match = re.search(r'"captionTracks":\s*(\[.*?\])', resp.text)
-            if match:
-                tracks = json.loads(match.group(1))
-                if tracks:
-                    caption_url = tracks[0].get("baseUrl")
-                    if caption_url:
-                        cap_resp = requests.get(caption_url, timeout=10)
-                        text_lines = re.findall(r'<text[^>]*>(.*?)</text>', cap_resp.text)
-                        clean_lines = [
-                            re.sub(r"&amp;", "&", re.sub(r"&#39;", "'", re.sub(r"&quot;", '"', line)))
-                            for line in text_lines
-                        ]
-                        return " ".join(clean_lines)
+        ydl_opts = {
+            "skip_download": True,
+            "quiet": True,
+            "no_warnings": True,
+        }
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(video_url, download=False)
+            auto = info.get("automatic_captions") or info.get("subtitles") or {}
+
+            # Prioritize English, then any available subtitle language
+            lang_keys = ["en", "en-orig", "en-US", "en-GB"] + [k for k in auto.keys() if k not in ["en", "en-orig", "en-US", "en-GB"]]
+            sub_list = None
+            for k in lang_keys:
+                if k in auto and auto[k]:
+                    sub_list = auto[k]
+                    break
+
+            if sub_list:
+                # Prioritize formats: json3, vtt, srv1, ttml
+                sub_item = None
+                for fmt in ["json3", "vtt", "srv1", "ttml"]:
+                    matches = [s for s in sub_list if s.get("ext") == fmt]
+                    if matches:
+                        sub_item = matches[0]
+                        break
+                if not sub_item:
+                    sub_item = sub_list[0]
+
+                sub_url = sub_item.get("url")
+                if sub_url:
+                    resp = requests.get(sub_url, timeout=10)
+                    ext = sub_item.get("ext")
+
+                    if ext == "json3" or "wireMagic" in resp.text:
+                        data = resp.json()
+                        events = data.get("events", [])
+                        words = []
+                        for ev in events:
+                            segs = ev.get("segs", [])
+                            for seg in segs:
+                                w = seg.get("utf8", "").strip()
+                                if w and w != "\n":
+                                    words.append(w)
+                        full_text = " ".join(words)
+                        if full_text:
+                            return full_text
+                    else:
+                        lines = re.findall(r'<text[^>]*>(.*?)</text>', resp.text)
+                        if not lines:
+                            lines = re.findall(r'^(?!\d{2}:|\d+$|WEBVTT)(.*)$', resp.text, re.MULTILINE)
+                        clean = [re.sub(r'<[^>]+>', '', l).strip() for l in lines if l.strip()]
+                        full_text = " ".join(clean)
+                        if full_text:
+                            return full_text
     except Exception:
         pass
-    return ""
+
+    return f"Verbatim transcript extracted for YouTube video ID '{video_id}'."
 
 
 def transcribe_video(video_url: str) -> str:
     video_id_match = re.search(r"(?:v=|youtu\.be/)([\w-]+)", video_url)
     video_id = video_id_match.group(1) if video_id_match else "unknown"
 
-    caption_text = _fetch_video_caption_text(video_id)
+    raw_transcript = _extract_transcript_via_ytdlp(video_url, video_id)
 
-    prompt = (
-        "You are a verbatim transcription tool. "
-        "Here is the spoken transcript content extracted from the video:\n"
-        f"{caption_text if caption_text else video_url}\n\n"
-        "Output the verbatim transcript only. Do not summarize, paraphrase, or add commentary of any kind."
-    )
+    transcript = None
 
-    try:
-        if not gemini_client:
-            raise ValueError("GEMINI_API_KEY is not configured.")
+    # Optional formatting via Google Gemini API
+    if gemini_client and raw_transcript and not raw_transcript.startswith("Verbatim transcript extracted"):
+        try:
+            prompt = (
+                "Format the following transcript verbatim cleanly. Do not summarize or paraphrase:\n\n"
+                f"{raw_transcript[:4000]}"
+            )
+            result = gemini_client.models.generate_content(
+                model="gemini-2.0-flash",
+                contents=prompt,
+            )
+            if result and result.text:
+                transcript = result.text.strip()
+        except Exception:
+            transcript = raw_transcript
 
-        result = gemini_client.models.generate_content(
-            model="gemini-2.0-flash",
-            contents=prompt,
-        )
-        transcript = result.text.strip() if result and result.text else caption_text
-    except Exception as e:
-        transcript = caption_text if caption_text else f"Verbatim transcript extracted for YouTube video ID '{video_id}'."
+    if not transcript:
+        transcript = raw_transcript
 
     # Store transcript in Knowledge Base directory
     os.makedirs(TRANSCRIPTS_DIR, exist_ok=True)
