@@ -11,7 +11,6 @@ An autonomous AI Agent built with **Groq API**, **SerpApi**, and **Streamlit**. 
 ## 🌐 Live Demo
 
 - **Live App:** [https://vidscribe-ai.streamlit.app/](https://vidscribe-ai.streamlit.app/)
-- **Demo Video:** *(Add video link / GIF here)*
 
 ---
 
