@@ -1,8 +1,9 @@
 # 🎬 VidScribe.AI — YouTube Video Search & Transcription Agent
 
-![Python](https://img.shields.io/badge/Python-3.10%2B-blue?logo=python)
+![Python](https://img.shields.io/badge/Python-3.10%2B-blue?logo=python) 
 ![Streamlit](https://img.shields.io/badge/Streamlit-1.40%2B-FF4B4B?logo=streamlit)
 ![Groq](https://img.shields.io/badge/Groq-LLaMA%203.3-orange)
+
 An autonomous AI Agent built with **Groq API**, **SerpApi**, and **Streamlit**. VidScribe.AI searches YouTube by topic (or direct URL), transcribes spoken audio using SerpApi, stores transcripts in a local Knowledge Base, and provides a clean, responsive web interface.
 
 ---
