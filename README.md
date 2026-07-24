@@ -16,9 +16,11 @@ An autonomous AI Agent built with **Groq API**, **SerpApi**, and **Streamlit**. 
 
 ## 📸 Screenshots
 
-| Main Interface & Input | Verbatim Transcript & Download |
-| :---: | :---: |
-| ![Main UI](docs/assets/main_ui.png) | ![Transcript Output](docs/assets/transcript_output.png) |
+### Main Interface & Input
+![Main UI](docs/assets/main_ui.png)
+
+### Verbatim Transcript & Download
+![Transcript Output](docs/assets/transcript_output.png)
 
 ---
 
